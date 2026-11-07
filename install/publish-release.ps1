@@ -1,6 +1,6 @@
 ﻿param(
     [string]$Token = $env:GITHUB_TOKEN,
-    [string]$Repo  = "kilier18/dsh-purge-backup",
+    [string]$Repo  = "kilier18/preset-kit-offline",
     [string]$Tag   = "v1.1.90",
     [string]$Name  = "v1.1.90 · dsh-preset-kit 离线安装包（Windows 一键安装器）",
     [string]$Notes = "docs/RELEASE-v1.1.90.md"
