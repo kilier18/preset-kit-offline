@@ -3,6 +3,16 @@
 一台能正常起来的环境里跑通过的 **dsh-preset-kit 1.1.90** 完整离线包，外加一套**不依赖插件市场/插件安装器**的落地脚本。
 换新电脑、或者 DSH 面板死活装不上时，照下面走即可。
 
+## 下载
+
+| 文件 | 大小 | 用途 |
+|---|---|---|
+| [`dsh-preset-kit-setup-1.1.91.exe`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.91/dsh-preset-kit-setup-1.1.91.exe) | 2,074,112 B | 单文件安装器，双击即装（已内嵌离线包） |
+| [`dsh-preset-kit-1.1.90.tgz`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.91/dsh-preset-kit-1.1.90.tgz) | 2,039,149 B | 离线包本体，配合 `install\install.cmd` 或手动 `pnpm add file:` |
+| [`SHA256SUMS.txt`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.91/SHA256SUMS.txt) | 190 B | 校验值 |
+
+整树克隆：`git clone https://github.com/kilier18/preset-kit-offline.git`（含 `pkg/`、`tools/`、`docs/`、`install/`）。
+
 - 上游：<https://github.com/YuJunZhiXue/dsh-preset-kit> tag `v1.1.90`，commit `217d60d3d61881079ea95bbe2c174f338a02182b`，发布 2026-11-02
 - 宿主版本：**DSH 0.2.1-rc.5**（`package.json` 的 `dshTargets` 里是 `0.2.1-rc.2` / `0.2.1-rc.5`）
 - 许可：Apache-2.0 + 上游 NOTICE（二开署名要求见 `pkg/NOTICE`）
