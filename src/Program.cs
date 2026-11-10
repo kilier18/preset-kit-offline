@@ -1,7 +1,8 @@
-// dsh-purge setup 1.1.93 - single-file offline installer for DeepSeek Harness
-// 1.1.93: unpacks resources\app.asar into resources\app on a clean machine, then renames the asar,
-//         so a fresh DSH install needs no manual asar step. Payload stays dsh-purge 1.1.92.
-// build: csc /target:exe /codepage:65001 /resource:dist\dsh-preset-kit-1.1.92.tgz,presetkitctl.payload.tgz
+// dsh-purge setup 1.1.94 - single-file offline installer for DeepSeek Harness
+// 1.1.94: unpacks resources\app.asar into resources\app on a clean machine, then renames the asar,
+//         so a fresh DSH install needs no manual asar step.
+//         Payload is dsh-purge 1.1.94 (3 extra host patches + boot self-heal).
+// build: csc /target:exe /codepage:65001 /resource:dist\dsh-preset-kit-1.1.94.tgz,presetkitctl.payload.tgz
 // C# 5 only (Framework csc 14.8) - no string interpolation, no null-conditional.
 
 using System;
@@ -19,9 +20,9 @@ static class Program
     const string PayloadRes = "presetkitctl.payload.tgz";
     const string ToolsMjs = "presetkitctl.tools.calibrate.mjs";
     const string ToolsCmd = "presetkitctl.tools.calibrate.cmd";
-    const string PkgVersion = "1.1.92";
-    const string ExeVersion = "1.1.93";
-    const string Spec = "file:./.dsh-purge/dist/dsh-preset-kit-1.1.92.tgz";
+    const string PkgVersion = "1.1.94";
+    const string ExeVersion = "1.1.94";
+    const string Spec = "file:./.dsh-purge/dist/dsh-preset-kit-1.1.94.tgz";
 
     static bool dry, noAsar, assumeYes, doKill = true, noCal, calRevert;
     static bool killedHost, relaunchWanted;
@@ -261,7 +262,7 @@ static class Program
         try
         {
             Directory.CreateDirectory(keepDir);
-            string keep = Path.Combine(keepDir, "dsh-preset-kit-1.1.92.tgz");
+            string keep = Path.Combine(keepDir, "dsh-preset-kit-1.1.94.tgz");
             bool need = true;
             if (File.Exists(keep))
             {
@@ -576,7 +577,7 @@ static class Program
         return false;
     }
 
-    // ---------- asar unpack (1.1.93) ----------
+    // ---------- asar unpack (1.1.93+) ----------
 
     static bool UnpackAsar(string asarPath, string outDir)
     {
@@ -1028,12 +1029,12 @@ static class Program
         if (asarOk && killedHost)
         {
             Out("  1) 宿主已自动重启，等 30-60 秒完成首次自检");
-            Out("  2) 侧栏 dsh-purge → 状态，应为 patches: 68/70 applied, 0 pending");
+            Out("  2) 侧栏 dsh-purge → 状态，应为 drifted = 0（1.1.94 共 89 条补丁，skipped 是设计内）");
         }
         else
         {
             Out("  1) 完全退出 DSH 桌面端（含托盘），再启动一次");
-            Out("  2) 侧栏 dsh-purge → 状态，确认 patches: 68/70 applied, 0 pending");
+            Out("  2) 侧栏 dsh-purge → 状态，确认 drifted = 0（1.1.94 共 89 条补丁，skipped 是设计内）");
         }
         Out(asarOk
             ? "  3) 若有补丁未校准 → 重启宿主后点一次「应用」"
