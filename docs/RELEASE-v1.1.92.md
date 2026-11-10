@@ -2,6 +2,14 @@
 
 发布日期：2026-11-10 · 安装器：`dist/dsh-preset-kit-setup-1.1.92.exe`（单文件，2.0 MB 载荷内嵌）
 
+> [!WARNING]
+> **本版安装器不能直接装在全新电脑上。** 它只往 profile 里装插件、写 `cordis.patch.yml`，完全不碰 `resources\app.asar`；而补丁要落的 `resources\app\dsh\node_modules\@deepseek-ai\` 在官方分发包里根本不存在（官方只有 203 MB 的 `app.asar` 打包体）。
+>
+> 后果：装完插件在、侧栏面板在、**`applied` 是 0**，一条补丁都没生效。
+>
+> 全新电脑请用 **v1.1.93**（`dsh-preset-kit-setup-1.1.93.exe`，安装器内置 asar 解包），见 [`RELEASE-v1.1.93.md`](RELEASE-v1.1.93.md)。
+> 本版的载荷（97 文件 / 2,023,466 B）自 1.1.93 起原样复用，本文件保留用于查九处补丁重锚的对照表。
+
 ## 一句话
 
 适配 **DeepSeek Harness 0.2.2-rc.1**：载荷整体升到 1.1.92，在新宿主上 **68/70 applied、0 pending、0 drifted**，装完即用，不再出现「未适配」与成片 `drifted`。

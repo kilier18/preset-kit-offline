@@ -5,15 +5,31 @@
 
 **适配宿主：DeepSeek Harness 0.2.2-rc.1**（`dshTargets` = `0.2.1-rc.2` / `0.2.1-rc.5` / `0.2.2-rc.1`）。
 
-> **1.1.93 起，全新电脑双击一个 exe 就能用。** 官方分发只有 `resources\app.asar`（203 MB 打包体），而补丁必须落在 `resources\app\` 解包目录。1.1.92 及以前只装插件不处理 asar，所以新机器上「面板在、补丁 0 条生效」。1.1.93 把 asar 解包内置进安装器：解包 → 改名 → 重启宿主，一条龙。
+> [!WARNING]
+> ### 全新电脑请只装 v1.1.93
+>
+> **v1.1.92 及以前的安装器不能直接装在全新电脑上** —— 它们只往 profile 里装插件、写 `cordis.patch.yml`，完全不碰 `resources\app.asar`。
+> 而补丁要落的目标目录是 `resources\app\dsh\node_modules\@deepseek-ai\`，这个目录在官方分发包里**根本不存在**（官方只有 203 MB 的 `app.asar` 打包体）。
+>
+> 结果就是：装完插件在、侧栏面板在、**`applied` 是 0** —— 一条补丁都没生效，看起来像装了但没效果。
+>
+> 判断方法：打开侧栏「状态」，如果顶部有 `✗ app.asar 还在` 告警、或 `applied` 明显少于 `68`，就是这个情况。
+>
+> **解决**：装 [`v1.1.93`](https://github.com/kilier18/preset-kit-offline/releases/tag/v1.1.93) 的 exe。它把 asar 解包内置进去了：解包 → 改名 → 重启宿主，一条龙，双击即可。
+>
+> 已经在 1.1.92 上踩坑、`resources\app` 也已存在的机器，装 1.1.93 同样能修（它会跳过解包、只把 asar 改名）。
 
 ## 下载
 
+只列**现在能用**的；历史版本见 [Releases](https://github.com/kilier18/preset-kit-offline/releases)。
+
 | 文件 | 大小 | 用途 |
 |---|---|---|
-| [`dsh-preset-kit-setup-1.1.93.exe`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.93/dsh-preset-kit-setup-1.1.93.exe) | 2,062,848 B | 单文件安装器，双击即装（已内嵌离线包 + 自动处理 asar） |
-| [`dsh-preset-kit-1.1.92.tgz`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.93/dsh-preset-kit-1.1.92.tgz) | 2,023,466 B | 离线包本体（载荷未变），配合 `install\install.cmd` 或手动 `pnpm add file:` |
+| [`dsh-preset-kit-setup-1.1.93.exe`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.93/dsh-preset-kit-setup-1.1.93.exe) | 2,062,848 B | **唯一推荐**：单文件安装器，双击即装（内嵌离线包 + 自动解包 asar） |
+| [`dsh-preset-kit-1.1.92.tgz`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.93/dsh-preset-kit-1.1.92.tgz) | 2,023,466 B | 插件本体（载荷，1.1.93 内嵌的就是它）；只在已有 `resources\app` 的机器上配合 `install\install.cmd` 手动用 |
 | [`SHA256SUMS.txt`](https://github.com/kilier18/preset-kit-offline/releases/download/v1.1.93/SHA256SUMS.txt) | — | 校验值 |
+
+**不要装**：[`v1.1.92`](https://github.com/kilier18/preset-kit-offline/releases/tag/v1.1.92) / `v1.1.91` / `v1.1.90` 的 exe —— 全新电脑上补丁 0 条生效（1.1.90/1.1.91 另外还有 9 条 `drifted`）。
 
 整树克隆：`git clone https://github.com/kilier18/preset-kit-offline.git`（含 `tools/`、`docs/`、`install/`）。
 
@@ -120,8 +136,9 @@ install\windows\swap-to-app-dir.cmd
 
 ## 装之前注意
 
-- **全新的 DSH、没装过同类预设插件**：双击 exe，等它解包（约 20–60 秒）并重启宿主，完事。
+- **全新的 DSH、没装过同类预设插件**：双击 `dsh-preset-kit-setup-1.1.93.exe`，等它解包（约 20–60 秒）并重启宿主，完事。**别用 1.1.92 及以前的 exe**（见顶部警告）。
 - **以前装过旧版（1.1.90 / 1.1.91 / 1.1.92）**：先在旧面板里「回滚」，或按上表还原 `.bak`，再卸载旧插件，然后装本包 —— 不同版本的补丁标记不同名，直接叠加会看到 `drifted` 告警，且文件里会留两套注释。
+- **装过 1.1.92 且 `applied` 是 0**：不用回滚，直接装 1.1.93 —— 它检测到 `resources\app` 已存在就跳过解包，只把 `app.asar` 改名切走，然后重启宿主，补丁就生效了。
 - **宿主比 0.2.2-rc.1 更新**：面板可能出现「未适配」提示与成片 `drifted`，说明宿主又改了被锚定的代码；此时看面板逐条对新版源码重锚（`docs/RELEASE-v1.1.92.md` 里的对照表就是上一轮的做法）。
 - **每次 DSH 升级会重装回 `app.asar`**，补丁全部失效 —— 重跑一次 `dsh-preset-kit-setup-1.1.93.exe` 即可（它会把 asar 再解包、再切走）。
 - 若桌面端还在读 `app.asar`（面板顶部有「app.asar 还在」告警），补丁等于没打：重跑安装器，或 `install\windows\swap-to-app-dir.cmd`。
