@@ -1,4 +1,5 @@
+8e5f8e6c2a8aa41d8455dee182dd51ac86c6847d1a1e383cecd9fb58c1a681bc *dsh-preset-kit-setup-1.1.93.exe
 59dcaa995ac118fb6deb58f2c6b4d45cd6b85e120be9bbb38c3472da99e7fe8d *dsh-preset-kit-setup-1.1.92.exe
 934cdbeb7885c4e4bd0a2e52b6c89f5b001a91722bf43a5aa7e7d13ecc5253e4 *dsh-preset-kit-1.1.92.tgz
-45e3512d216ceccdcf422870e54ec936435fa40f6b1fe6571940df15b34e7963 *dsh-preset-kit-1.1.90.tgz
 26052139dd1a3b004f04054c846f773d262520112df11f1d37e9d47c3a147d9c *dsh-preset-kit-setup-1.1.91.exe
+45e3512d216ceccdcf422870e54ec936435fa40f6b1fe6571940df15b34e7963 *dsh-preset-kit-1.1.90.tgz

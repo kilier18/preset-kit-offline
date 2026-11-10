@@ -1,4 +1,6 @@
-// dsh-purge setup 1.1.92 - single-file offline installer for DeepSeek Harness
+// dsh-purge setup 1.1.93 - single-file offline installer for DeepSeek Harness
+// 1.1.93: unpacks resources\app.asar into resources\app on a clean machine, then renames the asar,
+//         so a fresh DSH install needs no manual asar step. Payload stays dsh-purge 1.1.92.
 // build: csc /target:exe /codepage:65001 /resource:dist\dsh-preset-kit-1.1.92.tgz,presetkitctl.payload.tgz
 // C# 5 only (Framework csc 14.8) - no string interpolation, no null-conditional.
 
@@ -18,10 +20,12 @@ static class Program
     const string ToolsMjs = "presetkitctl.tools.calibrate.mjs";
     const string ToolsCmd = "presetkitctl.tools.calibrate.cmd";
     const string PkgVersion = "1.1.92";
-    const string ExeVersion = "1.1.92";
+    const string ExeVersion = "1.1.93";
     const string Spec = "file:./.dsh-purge/dist/dsh-preset-kit-1.1.92.tgz";
 
-    static bool dry, noAsar = true, assumeYes, doKill, noCal, calRevert;
+    static bool dry, noAsar, assumeYes, doKill = true, noCal, calRevert;
+    static bool killedHost, relaunchWanted;
+    static string asarAction = "";
     static string rootArg, profileArg = "desktop";
 
     static int Main(string[] args)
@@ -62,6 +66,18 @@ static class Program
 
             bool asarOk = HandleAsar(root);
             Summary(root, home, profiles, failed, asarOk, cal);
+
+            if (relaunchWanted && !dry && !noAsar)
+            {
+                string hostExe = Path.Combine(root, "DeepSeek Harness.exe");
+                if (File.Exists(hostExe))
+                {
+                    Out("");
+                    Out("[i] 重新启动 DeepSeek Harness ...");
+                    try { Process.Start(hostExe); Out("[+] 已拉起，等 30-60 秒让它完成补丁自应用"); }
+                    catch (Exception ex) { Out("[!] 启动失败，请手动打开: " + ex.Message); }
+                }
+            }
             return failed == 0 ? 0 : 1;
         }
         catch (Exception ex)
@@ -88,6 +104,7 @@ static class Program
                 case "--cal-revert": calRevert = true; break;
                 case "--yes": assumeYes = true; break;
                 case "--kill": doKill = true; break;
+                case "--no-kill": doKill = false; break;
                 case "--root":
                     if (i + 1 < a.Length) rootArg = a[++i];
                     break;
@@ -101,10 +118,12 @@ static class Program
                     Out("  --dry-run            只探测，不写入");
                     Out("  --root <dir>         指定 DSH 安装目录");
                     Out("  --profile <name|all> 目标档案，默认 desktop（all = desktop/web/work）");
-                    Out("  --asar               改 app.asar 名字（默认不改，桌面端不需此步）");
+                    Out("  --no-asar            不动 app.asar（不解包、不改名；补丁将不生效）");
+                    Out("  --asar               兼容旧脚本，等同默认行为");
                     Out("  --no-cal             只装包，不做会话预检校准");
                     Out("  --cal-revert         用校准备份还原会话预检（还原后预检恢复默认）");
-                    Out("  --kill               检测到 DSH 在跑就结束它（默认只提示）");
+                    Out("  --kill               结束正在运行的 DSH（默认就会做，为兼容保留）");
+                    Out("  --no-kill            不结束 DSH；asar 被锁时提示你手动退出后在重跑");
                     Out("  --yes                少问一句（保留给未来确认项）");
                     Environment.Exit(0);
                     break;
@@ -462,57 +481,226 @@ static class Program
     static bool HandleAsar(string root)
     {
         Out("");
-        string asar = Path.Combine(Path.Combine(root, "resources"), "app.asar");
-        string appDir = Path.Combine(Path.Combine(root, "resources"), "app");
+        string resDir = Path.Combine(root, "resources");
+        string asar = Path.Combine(resDir, "app.asar");
+        string appDir = Path.Combine(resDir, "app");
+        string appPkg = Path.Combine(appDir, "package.json");
+
         if (!File.Exists(asar))
         {
             Out("[=] app.asar 已不在（桌面端已跑在解包目录），无需处理");
+            asarAction = "已在解包目录，无需处理";
             return true;
         }
-        if (!File.Exists(Path.Combine(appDir, "package.json")))
-        {
-            Out("[!] resources\\app 还没有解包内容 → 现在改名会让 DSH 起不来，跳过");
-            Out("    先启动 DSH → 侧栏 dsh-purge → 校准 → 应用，再跑本 exe（或 swap-to-app-dir.cmd）");
-            return false;
-        }
-        if (noAsar) { Out("[i] --no-asar：跳过 asar 改名"); return true; }
-        if (dry) { Out("[i] would rename app.asar -> app.asar.dshpurge.bak"); return true; }
 
-        if (Process.GetProcessesByName("DeepSeek Harness").Length > 0)
+        if (noAsar)
         {
-            if (doKill)
+            Out("[i] --no-asar：不动 app.asar（不解包、不改名）→ 补丁不会生效");
+            asarAction = "跳过（--no-asar）";
+            return true;
+        }
+
+        bool alreadyUnpacked = File.Exists(appPkg);
+        if (!alreadyUnpacked)
+        {
+            if (dry)
             {
-                Out("[i] 结束正在运行的 DeepSeek Harness ...");
-                foreach (Process pr in Process.GetProcessesByName("DeepSeek Harness"))
-                {
-                    try { pr.Kill(); pr.WaitForExit(5000); } catch { }
-                }
-                System.Threading.Thread.Sleep(1500);
+                Out("[i] would unpack app.asar (" + new FileInfo(asar).Length + " B) -> resources\\app");
             }
             else
             {
-                Out("[!] DeepSeek Harness 正在运行，asar 被锁。退出桌面端（含托盘）后重跑，或加 --kill");
-                return false;
+                Out("[*] resources\\app 不存在 → 首次解包 app.asar（约 20-60 秒，目标 450-500 MB）");
+                if (!UnpackAsar(asar, appDir))
+                {
+                    Out("[x] 解包失败；asar 保持原样，桌面端照常启动（只是补丁不生效）");
+                    return false;
+                }
+                if (!File.Exists(appPkg))
+                {
+                    Out("[x] 解包后仍缺少 resources\\app\\package.json，放弃改名");
+                    return false;
+                }
+                Out("[+] 解包完成，resources\\app 已就绪");
             }
         }
+        else
+        {
+            Out("[=] resources\\app 已存在，跳过解包");
+        }
+        if (dry) { Out("[i] would rename app.asar -> app.asar.dshpurge.bak"); return true; }
 
         string target = asar + ".dshpurge.bak";
         if (File.Exists(target)) { Out("[!] 目标已存在: " + Path.GetFileName(target) + "，请手工确认后再跑"); return false; }
-        for (int i = 1; i <= 12; i++)
+
+        // 先直接改名：DSH 没跑、或没握住 asar 时，不碰任何进程
+        if (TryMoveAsar(asar, target, 3))
         {
-            try
-            {
-                File.Move(asar, target);
-                Out("[+] app.asar -> app.asar.dshpurge.bak（" + new FileInfo(target).Length + " B）");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                if (i == 12) { Out("[x] 改名失败（12 次重试）: " + ex.Message); return false; }
-                System.Threading.Thread.Sleep(500);
-            }
+            Out("[+] app.asar -> app.asar.dshpurge.bak（" + new FileInfo(target).Length + " B）");
+            asarAction = alreadyUnpacked ? "asar 已改名，下次启动读解包目录" : "已解包并切换到 resources\\app";
+            return true;
+        }
+
+        if (!doKill)
+        {
+            Out("[!] app.asar 被占用；你给了 --no-kill，停在这里");
+            Out("    完全退出 DSH 桌面端（含托盘）后重跑本 exe 即可");
+            return false;
+        }
+
+        Out("[i] app.asar 被占用 → 结束正在运行的 DeepSeek Harness 后重试");
+        foreach (Process pr in Process.GetProcessesByName("DeepSeek Harness"))
+        {
+            try { pr.Kill(); pr.WaitForExit(5000); } catch { }
+        }
+        System.Threading.Thread.Sleep(2000);
+        killedHost = true;
+        relaunchWanted = true;
+
+        if (TryMoveAsar(asar, target, 12))
+        {
+            Out("[+] app.asar -> app.asar.dshpurge.bak（" + new FileInfo(target).Length + " B）");
+            asarAction = alreadyUnpacked ? "asar 已改名，下次启动读解包目录（宿主已重启）" : "已解包并切换（宿主已重启）";
+            return true;
+        }
+        Out("[x] 结束进程后 12 次重试仍改名失败");
+        return false;
+    }
+
+    static bool TryMoveAsar(string src, string dst, int attempts)
+    {
+        for (int i = 1; i <= attempts; i++)
+        {
+            try { File.Move(src, dst); return true; }
+            catch { if (i < attempts) System.Threading.Thread.Sleep(500); }
         }
         return false;
+    }
+
+    // ---------- asar unpack (1.1.93) ----------
+
+    static bool UnpackAsar(string asarPath, string outDir)
+    {
+        try
+        {
+            FileStream fs = new FileStream(asarPath, FileMode.Open, FileAccess.Read, FileShare.Read);
+            try
+            {
+                byte[] head = new byte[16];
+                int got = 0;
+                while (got < 16)
+                {
+                    int n = fs.Read(head, got, 16 - got);
+                    if (n <= 0) { Out("[x] asar 头部读取失败"); return false; }
+                    got += n;
+                }
+                uint u4 = BitConverter.ToUInt32(head, 4);
+                uint jsonLen = BitConverter.ToUInt32(head, 12);
+                long dataBase = 8L + (long)u4;
+                if (jsonLen == 0 || jsonLen > 64L * 1024 * 1024 || dataBase >= fs.Length)
+                {
+                    Out("[x] asar 头部异常: jsonLen=" + jsonLen + " base=" + dataBase);
+                    return false;
+                }
+                Out("[i] asar 头: jsonLen=" + jsonLen + " B, 数据区起点=" + dataBase);
+
+                byte[] jb = new byte[jsonLen];
+                got = 0;
+                while (got < (int)jsonLen)
+                {
+                    int n = fs.Read(jb, got, (int)jsonLen - got);
+                    if (n <= 0) { Out("[x] asar 头 JSON 读取不完整"); return false; }
+                    got += n;
+                }
+
+                JavaScriptSerializer ser = new JavaScriptSerializer();
+                ser.MaxJsonLength = int.MaxValue;
+                object parsed = ser.DeserializeObject(Encoding.UTF8.GetString(jb));
+                Dictionary<string, object> top = parsed as Dictionary<string, object>;
+                if (top == null || !top.ContainsKey("files"))
+                {
+                    Out("[x] asar JSON 结构异常（缺少 files）");
+                    return false;
+                }
+                Directory.CreateDirectory(outDir);
+                int[] stat = new int[3]; // 0=文件 1=目录 2=unpacked 复制
+                WalkAsarNode(fs, top["files"] as Dictionary<string, object>, "", outDir, dataBase, stat);
+                Out("[+] asar 解包：目录 " + stat[1] + " 个，文件 " + stat[0] + " 个（其中从 .unpacked 复制 " + stat[2] + " 个）");
+                return true;
+            }
+            finally { fs.Close(); }
+        }
+        catch (Exception ex)
+        {
+            Out("[x] 解包异常: " + ex.Message);
+            return false;
+        }
+    }
+
+    static void WalkAsarNode(FileStream fs, Dictionary<string, object> node, string rel, string outDir, long dataBase, int[] stat)
+    {
+        if (node == null) return;
+        foreach (KeyValuePair<string, object> kv in node)
+        {
+            Dictionary<string, object> entry = kv.Value as Dictionary<string, object>;
+            if (entry == null) continue;
+            string relChild = rel.Length == 0 ? kv.Key : rel + "/" + kv.Key;
+
+            object sub;
+            if (entry.TryGetValue("files", out sub))
+            {
+                Directory.CreateDirectory(Path.Combine(outDir, relChild.Replace('/', '\\')));
+                stat[1]++;
+                WalkAsarNode(fs, sub as Dictionary<string, object>, relChild, outDir, dataBase, stat);
+                continue;
+            }
+
+            string dest = Path.Combine(outDir, relChild.Replace('/', '\\'));
+            string parent = Path.GetDirectoryName(dest);
+            if (!string.IsNullOrEmpty(parent)) Directory.CreateDirectory(parent);
+
+            bool unpacked = false;
+            object up;
+            if (entry.TryGetValue("unpacked", out up) && up != null)
+            {
+                try { unpacked = Convert.ToBoolean(up); } catch { unpacked = false; }
+            }
+
+            if (unpacked)
+            {
+                string src = Path.Combine(fs.Name + ".unpacked", relChild.Replace('/', '\\'));
+                if (File.Exists(src))
+                {
+                    File.Copy(src, dest, true);
+                    stat[2]++;
+                }
+            }
+            else
+            {
+                object so, oo;
+                if (!entry.TryGetValue("size", out so) || !entry.TryGetValue("offset", out oo)) continue;
+                long size = Convert.ToInt64(so);
+                long off = Convert.ToInt64(oo);
+                if (size <= 0) { File.WriteAllBytes(dest, new byte[0]); stat[0]++; continue; }
+                if (dataBase + off + size > fs.Length) { Out("[x] 偏移越界，跳过: " + relChild); continue; }
+                fs.Position = dataBase + off;
+                byte[] buf = new byte[65536];
+                FileStream os = new FileStream(dest, FileMode.Create, FileAccess.Write, FileShare.None);
+                try
+                {
+                    long left = size;
+                    while (left > 0)
+                    {
+                        int want = (int)Math.Min((long)buf.Length, left);
+                        int n = fs.Read(buf, 0, want);
+                        if (n <= 0) break;
+                        os.Write(buf, 0, n);
+                        left -= n;
+                    }
+                }
+                finally { os.Close(); }
+            }
+            stat[0]++;
+        }
     }
 
     // ---------- tar.gz ----------
@@ -668,7 +856,7 @@ static class Program
 
     static string Calibrate(string home, List<string> profiles)
     {
-        string backupRoot = Path.Combine(Path.Combine(home, "dsh-preset-kit"), "precheck-backup");
+        string backupRoot = Path.Combine(Path.Combine(home, "dsh-purge"), "precheck-backup");
         List<string> states = new List<string>();
 
         if (calRevert)
@@ -709,7 +897,7 @@ static class Program
             Out("[+] " + profName + " 预检=" + state + "  提示词改写=" + promptHits);
         }
 
-        string toolsDir = Path.Combine(home, "dsh-preset-kit");
+        string toolsDir = Path.Combine(home, "dsh-purge");
         if (!dry)
         {
             try
@@ -834,14 +1022,22 @@ static class Program
         Out("DSH_HOME : " + home);
         Out("档案     : " + Join(profiles));
         Out("预检     : " + cal);
-        Out("asar     : " + (asarOk ? "无需处理" : "未切换（见上面提示）"));
+        Out("asar     : " + (asarAction.Length > 0 ? asarAction : (asarOk ? "无需处理" : "未切换（见上面提示）")));
         Out("");
         Out("下一步：");
-        Out("  1) 完全退出 DSH 桌面端（含托盘），再启动一次");
-        Out("  2) 侧栏 dsh-purge → 状态，确认 patches: 68/70 applied, 0 pending");
+        if (asarOk && killedHost)
+        {
+            Out("  1) 宿主已自动重启，等 30-60 秒完成首次自检");
+            Out("  2) 侧栏 dsh-purge → 状态，应为 patches: 68/70 applied, 0 pending");
+        }
+        else
+        {
+            Out("  1) 完全退出 DSH 桌面端（含托盘），再启动一次");
+            Out("  2) 侧栏 dsh-purge → 状态，确认 patches: 68/70 applied, 0 pending");
+        }
         Out(asarOk
             ? "  3) 若有补丁未校准 → 重启宿主后点一次「应用」"
-            : "  3) app.asar 还在但与本插件无关，可忽略");
+            : "  3) asar 未切换时补丁不会生效：去掉 --no-kill 重跑，或手动退出 DSH 后重跑");
         Out("  4) 预检默认关闭；要恢复默认：tools\\calibrate.cmd --revert");
     }
 

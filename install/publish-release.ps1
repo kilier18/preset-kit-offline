@@ -1,11 +1,18 @@
-﻿param(
+param(
     [string]$Token = $env:GITHUB_TOKEN,
     [string]$Repo  = "kilier18/preset-kit-offline",
-    [string]$Tag   = "v1.1.92",
-    [string]$Name  = "v1.1.92 · dsh-preset-kit 离线安装包（Windows 一键安装器）",
-    [string]$Notes = "docs/RELEASE-v1.1.92.md"
+    [string]$Tag   = "v1.1.93",
+    [string]$Name  = "v1.1.93 · dsh-preset-kit 离线安装包（新电脑一键装，自动解包 asar）",
+    [string]$Notes = "docs/RELEASE-v1.1.93.md"
 )
 $ErrorActionPreference = "Stop"
+
+# GitHub API 只收 TLS 1.2+；PowerShell 5.1 默认还是 TLS 1.0，不设这行会全篇 WebException
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 -bor [Net.ServicePointManager]::SecurityProtocol
+} catch { }
+try { [Net.ServicePointManager]::Expect100Continue = $false } catch { }
+
 if (-not $Token) { Write-Host "[!] 需要 GitHub token（repo 权限）：`$env:GITHUB_TOKEN 或 -Token"; exit 2 }
 
 $api = "https://api.github.com/repos/$Repo"
@@ -34,8 +41,8 @@ if ($rel) {
 
 # 2) 上传/覆盖附件
 $assets = @(
-    @{ path = "dist/dsh-preset-kit-setup-1.1.92.exe"; name = "dsh-preset-kit-setup-1.1.92.exe" },
-    @{ path = "dist/dsh-preset-kit-1.1.92.tgz";      name = "dsh-preset-kit-1.1.92.tgz" },
+    @{ path = "dist/dsh-preset-kit-setup-1.1.93.exe"; name = "dsh-preset-kit-setup-1.1.93.exe" },
+    @{ path = "dist/dsh-preset-kit-1.1.92.tgz";       name = "dsh-preset-kit-1.1.92.tgz" },
     @{ path = "dist/SHA256SUMS.txt";                 name = "SHA256SUMS.txt" }
 )
 foreach ($a in $assets) {

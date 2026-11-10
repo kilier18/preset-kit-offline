@@ -5,6 +5,7 @@
 | 2026-11-04 | 1.1.90 | `217d60d3d61881079ea95bbe2c174f338a02182b` | `v1.1.90` | `~/.dsh/profiles/desktop/node_modules/dsh-preset-kit`（本机已应用并验收 68/70、0 drifted） | `pkg` 98 个文件 / 4.3 MB；`dist/dsh-preset-kit-1.1.90.tgz` 2.0 MB |
 | 2026-11-07 | 1.1.91（安装器） | 同 1.1.90 | - | 本仓库自建 | `dist/dsh-preset-kit-setup-1.1.91.exe` 2.07 MB，内嵌 1.1.90 载荷 + `tools/` 两份脚本 |
 | 2026-11-10 | 1.1.92 | 无上游（本地主线） | - | `~/.dsh/profiles/desktop/node_modules/dsh-purge`（本机 DSH **0.2.2-rc.1** 验收 `68/70 applied · 0 pending · 0 drifted`） | `pkg` 97 个文件 / 4.18 MB；`dist/dsh-preset-kit-1.1.92.tgz` 2,023,466 B；`dist/dsh-preset-kit-setup-1.1.92.exe` 内嵌同一载荷 |
+| 2026-11-11 | 1.1.93（安装器） | 载荷同 1.1.92 | - | 本仓库自建 | `dist/dsh-preset-kit-setup-1.1.93.exe` 2,062,848 B，内嵌 1.1.92 载荷 + `tools/` 两份脚本；内置 `app.asar` 解包（本机实测 22,102 文件 / 462 MB / 21.8 s），解包后自动把 asar 改名并重启宿主 |
 
 > 1.1.92 起载荷换成 `dsh-purge` 主线（包名 `dsh-purge`，面板不显示包名），`dshTargets: ["0.2.1-rc.2", "0.2.1-rc.5", "0.2.2-rc.1"]`。
 > 与 1.1.90 载荷不是同一份源码：1.1.90 是上游 preset-kit 快照，1.1.92 补丁表按 0.2.2-rc.1 重锚，**不可叠加安装**。
@@ -26,7 +27,9 @@
 - **npm 上的 `dsh-preset-kit`**：latest 是 `1.2.1`，来自第三方 Android 适配分支（maintainer `panda11445`，对应 repo `ccch1mneyyy/dsh-Go`）。上游 README 明确写过 npm 上没有这个包名，`pnpm add dsh-preset-kit` 会装到别人的分支。
 - `1.1.84`–`1.1.87`：没有 rc.5 目标声明，装到 rc.5 上会被判"未适配"。
 
-- **1.1.90 / 1.1.91**：在宿主 **0.2.2-rc.1** 上会报 9 个 `drifted`（#14/#17/#40/#54/#60/#62/#67/#74/#82），补丁等于没打。0.2.2-rc.1 请用 1.1.92。
+- **1.1.90 / 1.1.91**：在宿主 **0.2.2-rc.1** 上会报 9 个 `drifted`（#14/#17/#40/#54/#60/#62/#67/#74/#82），补丁等于没打。0.2.2-rc.1 请用 1.1.92 及以后。
+
+- **1.1.92 及以前的安装器**：不处理 `resources\app.asar`，全新电脑装完补丁 0 条生效（插件在、面板在、applied=0）。要「双击即用」必须 1.1.93 及以后。
 
 ## 快照内容说明
 
