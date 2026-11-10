@@ -5,7 +5,7 @@
 
   Usage (from the repo root):
     powershell -ExecutionPolicy Bypass -File install\install-offline.ps1
-    powershell -ExecutionPolicy Bypass -File install\install-offline.ps1 -Profile work -Tar dist\dsh-preset-kit-1.1.90.tgz
+    powershell -ExecutionPolicy Bypass -File install\install-offline.ps1 -Profile work -Tar dist\dsh-preset-kit-1.1.92.tgz
 
   ASCII only: safe to run from cmd.exe or PowerShell without code page setup.
 #>
@@ -21,7 +21,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-if (-not $Tar) { $Tar = Join-Path $repo "dist\dsh-preset-kit-1.1.90.tgz" }
+if (-not $Tar) { $Tar = Join-Path $repo "dist\dsh-preset-kit-1.1.92.tgz" }
 if (-not (Test-Path $Tar)) { throw "tarball not found: $Tar" }
 $Tar = (Resolve-Path $Tar).Path
 if (-not $Spec) { $Spec = "file:$Tar" }
@@ -54,11 +54,11 @@ if (-not $SkipInstall) {
 }
 
 # --- postinstall equivalent, run by hand (pure file ops, no scripts policy involved) ---
-$ensure = Join-Path $profileDir "node_modules\dsh-preset-kit\scripts\ensure-profile-bundle.mjs"
+$ensure = Join-Path $profileDir "node_modules\dsh-purge\scripts\ensure-profile-bundle.mjs"
 if (Test-Path $ensure) {
   Write-Host "[*] node scripts/ensure-profile-bundle.mjs"
   Push-Location $profileDir
-  try { & $Node "node_modules\dsh-preset-kit\scripts\ensure-profile-bundle.mjs" } finally { Pop-Location }
+  try { & $Node "node_modules\dsh-purge\scripts\ensure-profile-bundle.mjs" } finally { Pop-Location }
 } else {
   Write-Warning "ensure-profile-bundle.mjs missing - package did not land in node_modules"
 }
@@ -69,10 +69,10 @@ Write-Host "[*] wiring profile"
 
 Write-Host ""
 Write-Host "[done] checks:"
-$installed = Join-Path $profileDir "node_modules\dsh-preset-kit\package.json"
+$installed = Join-Path $profileDir "node_modules\dsh-purge\package.json"
 if (Test-Path $installed) {
   $v = (Get-Content $installed -Raw | ConvertFrom-Json).version
-  Write-Host ("  dsh-preset-kit version in node_modules: {0}" -f $v)
-} else { Write-Warning "  dsh-preset-kit not present in node_modules" }
+  Write-Host ("  plugin version in node_modules: {0}" -f $v)
+} else { Write-Warning "  dsh-purge not present in node_modules" }
 Write-Host "  next: fully quit DeepSeek Harness (tray too), start it, then in the dsh-preset-kit panel: clean -> apply"
 Write-Host "  if resources\app.asar still exists, run dsh-preset-kit-swap-to-app-dir.cmd afterwards"

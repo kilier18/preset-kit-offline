@@ -1,5 +1,5 @@
-// dsh-preset-kit setup 1.1.91 - single-file offline installer for DeepSeek Harness
-// build: csc /target:exe /codepage:65001 /resource:dist\dsh-preset-kit-1.1.90.tgz,presetkitctl.payload.tgz
+// dsh-purge setup 1.1.92 - single-file offline installer for DeepSeek Harness
+// build: csc /target:exe /codepage:65001 /resource:dist\dsh-preset-kit-1.1.92.tgz,presetkitctl.payload.tgz
 // C# 5 only (Framework csc 14.8) - no string interpolation, no null-conditional.
 
 using System;
@@ -17,11 +17,11 @@ static class Program
     const string PayloadRes = "presetkitctl.payload.tgz";
     const string ToolsMjs = "presetkitctl.tools.calibrate.mjs";
     const string ToolsCmd = "presetkitctl.tools.calibrate.cmd";
-    const string PkgVersion = "1.1.90";
-    const string ExeVersion = "1.1.91";
-    const string Spec = "file:./.dsh-preset-kit/dist/dsh-preset-kit-1.1.90.tgz";
+    const string PkgVersion = "1.1.92";
+    const string ExeVersion = "1.1.92";
+    const string Spec = "file:./.dsh-purge/dist/dsh-preset-kit-1.1.92.tgz";
 
-    static bool dry, noAsar, assumeYes, doKill, noCal, calRevert;
+    static bool dry, noAsar = true, assumeYes, doKill, noCal, calRevert;
     static string rootArg, profileArg = "desktop";
 
     static int Main(string[] args)
@@ -48,7 +48,7 @@ static class Program
                 if (s == null) { Out("[x] 内嵌载荷缺失（编译时没带 /resource）。"); return 4; }
                 payload = ReadAll(s);
             }
-            Out("[+] 内嵌载荷: " + payload.Length + " B  (dsh-preset-kit " + PkgVersion + ")");
+            Out("[+] 内嵌载荷: " + payload.Length + " B  (dsh-purge " + PkgVersion + ")");
 
             if (dry) Out("[i] --dry-run：只检查，不写任何文件。");
 
@@ -83,6 +83,7 @@ static class Program
             {
                 case "--dry-run": dry = true; break;
                 case "--no-asar": noAsar = true; break;
+                case "--asar": noAsar = false; break;
                 case "--no-cal": noCal = true; break;
                 case "--cal-revert": calRevert = true; break;
                 case "--yes": assumeYes = true; break;
@@ -100,7 +101,7 @@ static class Program
                     Out("  --dry-run            只探测，不写入");
                     Out("  --root <dir>         指定 DSH 安装目录");
                     Out("  --profile <name|all> 目标档案，默认 desktop（all = desktop/web/work）");
-                    Out("  --no-asar            不改 app.asar 名字");
+                    Out("  --asar               改 app.asar 名字（默认不改，桌面端不需此步）");
                     Out("  --no-cal             只装包，不做会话预检校准");
                     Out("  --cal-revert         用校准备份还原会话预检（还原后预检恢复默认）");
                     Out("  --kill               检测到 DSH 在跑就结束它（默认只提示）");
@@ -225,7 +226,7 @@ static class Program
         Out("=== " + Path.GetFileName(profileDir) + "  " + profileDir);
 
         string nm = Path.Combine(profileDir, "node_modules");
-        string pkgDir = Path.Combine(nm, "dsh-preset-kit");
+        string pkgDir = Path.Combine(nm, "dsh-purge");
         bool shared = IsReparse(nm);
         if (shared) Out("[i] node_modules 是链接（与其他档案共用），解包落到链接目标上");
 
@@ -237,11 +238,11 @@ static class Program
         }
 
         // 1. payload copy for self-healing pnpm installs
-        string keepDir = Path.Combine(Path.Combine(profileDir, ".dsh-preset-kit"), "dist");
+        string keepDir = Path.Combine(Path.Combine(profileDir, ".dsh-purge"), "dist");
         try
         {
             Directory.CreateDirectory(keepDir);
-            string keep = Path.Combine(keepDir, "dsh-preset-kit-1.1.90.tgz");
+            string keep = Path.Combine(keepDir, "dsh-preset-kit-1.1.92.tgz");
             bool need = true;
             if (File.Exists(keep))
             {
@@ -253,7 +254,7 @@ static class Program
         }
         catch (Exception ex) { Out("[!] 离线包落地失败: " + ex.Message); }
 
-        // 2. extract package/ -> node_modules/dsh-preset-kit
+        // 2. extract package/ -> node_modules/dsh-purge
         int files = 0;
         try
         {
@@ -269,7 +270,7 @@ static class Program
 
         string installed = ReadPkgVersion(pkgDir);
         if (installed == null) { Out("[x] 解包后没读到 package.json，安装不完整"); return false; }
-        Out("[+] node_modules/dsh-preset-kit 版本: " + installed);
+        Out("[+] node_modules/dsh-purge 版本: " + installed);
         if (installed != PkgVersion) Out("[!] 版本与载荷不一致（期望 " + PkgVersion + "）");
 
         // 3. wire package.json
@@ -307,20 +308,33 @@ static class Program
         string orig = File.ReadAllText(f, Encoding.UTF8);
         string text = orig;
 
-        bool hasDep = Regex.IsMatch(text, "\"dsh-preset-kit\"\\s*:\\s*\"[^\"]*\"");
+        bool hasDep = Regex.IsMatch(text, "\"dsh-purge\"\\s*:\\s*\"[^\"]*\"");
         if (hasDep)
         {
-            text = Regex.Replace(text, "\"dsh-preset-kit\"\\s*:\\s*\"[^\"]*\"", "\"dsh-preset-kit\": \"" + Spec + "\"", RegexOptions.None);
-            Out("[=] dependencies.dsh-preset-kit 已有，spec 统一为 " + Spec);
+            text = Regex.Replace(text, "\"dsh-purge\"\\s*:\\s*\"[^\"]*\"", "\"dsh-purge\": \"" + Spec + "\"", RegexOptions.None);
+            Out("[=] dependencies.dsh-purge 已有，spec 统一为 " + Spec);
         }
         else
         {
             Match m = Regex.Match(text, "\"dependencies\"\\s*:\\s*\\{");
             if (!m.Success) { Out("[x] package.json 里没有 dependencies 节点"); return false; }
             int at = m.Index + m.Length;
-            string indent = GuessIndent(text, at);
-            text = text.Insert(at, "\r\n" + indent + "\"dsh-preset-kit\": \"" + Spec + "\",");
-            Out("[+] dependencies 插入 dsh-preset-kit");
+            int ls = text.LastIndexOf('\n', Math.Max(0, m.Index - 1)) + 1;
+            string outerIndent = Regex.Match(text.Substring(ls, m.Index - ls), "^[ \t]*").Value;
+            if (outerIndent.Length == 0) outerIndent = "  ";
+            // 空对象：自己补换行与缩进，避免出现 `{` 后直接贴着键名
+            int j = at;
+            while (j < text.Length && (text[j] == ' ' || text[j] == '\t' || text[j] == '\r' || text[j] == '\n')) j++;
+            if (j < text.Length && text[j] == '}')
+            {
+                text = text.Insert(at, "\r\n" + outerIndent + "  \"dsh-purge\": \"" + Spec + "\"\r\n" + outerIndent);
+            }
+            else
+            {
+                string indent = GuessIndent(text, at);
+                text = text.Insert(at, "\r\n" + indent + "\"dsh-purge\": \"" + Spec + "\",");
+            }
+            Out("[+] dependencies 插入 dsh-purge");
         }
 
         // bundles array inside dsh.profile
@@ -334,16 +348,16 @@ static class Program
         int close = text.IndexOf(']', open);
         if (close < 0) { Out("[x] bundles 数组没闭合"); return false; }
         string inner = text.Substring(open, close - open);
-        if (inner.IndexOf("\"dsh-preset-kit\"", StringComparison.Ordinal) >= 0)
+        if (inner.IndexOf("\"dsh-purge\"", StringComparison.Ordinal) >= 0)
         {
-            Out("[=] bundles 已含 dsh-preset-kit");
+            Out("[=] bundles 已含 dsh-purge");
         }
         else
         {
             string body = inner.Trim();
             if (body.Length == 0)
             {
-                text = text.Remove(open, close - open).Insert(open, "\r\n        \"dsh-preset-kit\"\r\n      ");
+                text = text.Remove(open, close - open).Insert(open, "\r\n        \"dsh-purge\"\r\n      ");
             }
             else
             {
@@ -351,9 +365,9 @@ static class Program
                 int lastNonWs = open + inner.Length - 1;
                 while (lastNonWs > open && char.IsWhiteSpace(text[lastNonWs])) lastNonWs--;
                 string ins = (text[lastNonWs] == ',') ? "" : ",";
-                text = text.Insert(lastNonWs + 1, ins + "\r\n" + itemIndent + "\"dsh-preset-kit\"");
+                text = text.Insert(lastNonWs + 1, ins + "\r\n" + itemIndent + "\"dsh-purge\"");
             }
-            Out("[+] bundles 追加 dsh-preset-kit");
+            Out("[+] bundles 追加 dsh-purge");
         }
 
         // 防尾逗号（空对象/空数组插入后会留下 ",\r\n  }"）
@@ -408,32 +422,26 @@ static class Program
             return true;
         }
         string text = File.ReadAllText(f, Encoding.UTF8);
-        if (Regex.IsMatch(text, "(?m)^\\s*-\\s*id:\\s*dsh-preset-kit\\s*$"))
+        if (Regex.IsMatch(text, "(?m)^\\s*-\\s*id:\\s*dsh-purge\\s*$"))
         {
-            Out("[=] cordis.patch.yml 已含 dsh-preset-kit");
+            Out("[=] cordis.patch.yml 已含 dsh-purge");
             return true;
         }
 
-        string indent = "  ";
-        Match idm = Regex.Match(text, "(?m)^([ ]+)-[ ]+id:");
-        if (idm.Success) indent = idm.Groups[1].Value;
-        string block = indent + "- id: dsh-preset-kit\r\n" + indent + "  enabled: true\r\n";
+        // 顶层是 patch 数组：追加一个新的 `- insert:` 元素，缩进固定按数组元素对齐
+        string block = "- insert:\r\n";
+        block += "    - id: dsh-purge\r\n";
+        block += "      name: dsh-purge\r\n";
+        block += "      inject: [ systemPrompt, tools ]\r\n";
+        block += "      config:\r\n";
+        block += "        enabled: true\r\n";
+        block += "        stripMnemon: true\r\n";
+        block += "        capabilityProtocol: true\r\n";
+        block += "        hooksDenyBypass: true\r\n";
 
-        Match ins = Regex.Match(text, "(?m)^insert:[ \\t]*\\r?$");
-        if (ins.Success)
-        {
-            int at = ins.Index + ins.Length;
-            if (at < text.Length && text[at] == '\r') at++;
-            if (at < text.Length && text[at] == '\n') at++;
-            text = text.Insert(at, block);
-            Out("[+] cordis.patch.yml: 在 insert 块追加 dsh-preset-kit");
-        }
-        else
-        {
-            if (!text.EndsWith("\n")) text += "\r\n";
-            text += "\r\ninsert:\r\n" + block;
-            Out("[+] cordis.patch.yml: 新建 insert 块");
-        }
+        if (!text.EndsWith("\n")) text += "\r\n";
+        text += "\r\n" + block;
+        Out("[+] cordis.patch.yml: 追加 insert 段（顶层数组元素）");
 
         try
         {
@@ -464,11 +472,11 @@ static class Program
         if (!File.Exists(Path.Combine(appDir, "package.json")))
         {
             Out("[!] resources\\app 还没有解包内容 → 现在改名会让 DSH 起不来，跳过");
-            Out("    先启动 DSH → 侧栏 dsh-preset-kit → 校准 → 应用，再跑本 exe（或 swap-to-app-dir.cmd）");
+            Out("    先启动 DSH → 侧栏 dsh-purge → 校准 → 应用，再跑本 exe（或 swap-to-app-dir.cmd）");
             return false;
         }
         if (noAsar) { Out("[i] --no-asar：跳过 asar 改名"); return true; }
-        if (dry) { Out("[i] would rename app.asar -> app.asar.dshpresetkit.bak"); return true; }
+        if (dry) { Out("[i] would rename app.asar -> app.asar.dshpurge.bak"); return true; }
 
         if (Process.GetProcessesByName("DeepSeek Harness").Length > 0)
         {
@@ -488,14 +496,14 @@ static class Program
             }
         }
 
-        string target = asar + ".dshpresetkit.bak";
+        string target = asar + ".dshpurge.bak";
         if (File.Exists(target)) { Out("[!] 目标已存在: " + Path.GetFileName(target) + "，请手工确认后再跑"); return false; }
         for (int i = 1; i <= 12; i++)
         {
             try
             {
                 File.Move(asar, target);
-                Out("[+] app.asar -> app.asar.dshpresetkit.bak（" + new FileInfo(target).Length + " B）");
+                Out("[+] app.asar -> app.asar.dshpurge.bak（" + new FileInfo(target).Length + " B）");
                 return true;
             }
             catch (Exception ex)
@@ -696,7 +704,7 @@ static class Program
 
             string netScope = Path.Combine(pkgDir, "net-scope.js");
             string state = CalibrateNetScope(netScope, Path.Combine(backupRoot, profName), profName);
-            int promptHits = CalibratePrompt(pkgDir, Path.Combine(backupRoot, profName), profName);
+            int promptHits = 0; // dsh-purge 自带提示词已是目标形态，不再套预设改写
             states.Add(profName + ":" + state + (promptHits > 0 ? "/提示词" + promptHits : ""));
             Out("[+] " + profName + " 预检=" + state + "  提示词改写=" + promptHits);
         }
@@ -720,7 +728,7 @@ static class Program
 
     static string PkgLibDir(string profileDir)
     {
-        string[] pkgNames = { "dsh-preset-kit", "dsh-purge" };
+        string[] pkgNames = { "dsh-purge" };
         foreach (string pn in pkgNames)
         {
             string d = Path.Combine(Path.Combine(Path.Combine(profileDir, "node_modules"), pn), "lib");
@@ -813,7 +821,7 @@ static class Program
 
     static void Banner()
     {
-        Out("dsh-preset-kit setup " + ExeVersion + "  (offline, single file)");
+        Out("dsh-purge setup " + ExeVersion + "  (offline, single file)");
         Out("--------------------------------------------------");
     }
 
@@ -826,14 +834,14 @@ static class Program
         Out("DSH_HOME : " + home);
         Out("档案     : " + Join(profiles));
         Out("预检     : " + cal);
-        Out("asar     : " + (asarOk ? "已切换/无需切换" : "未切换（见上面提示）"));
+        Out("asar     : " + (asarOk ? "无需处理" : "未切换（见上面提示）"));
         Out("");
         Out("下一步：");
         Out("  1) 完全退出 DSH 桌面端（含托盘），再启动一次");
-        Out("  2) 侧栏 dsh-preset-kit → 状态，确认补丁组数（86 组 / 0 pending）");
+        Out("  2) 侧栏 dsh-purge → 状态，确认 patches: 68/70 applied, 0 pending");
         Out(asarOk
             ? "  3) 若有补丁未校准 → 重启宿主后点一次「应用」"
-            : "  3) 若提示 app.asar 还在 → 重跑本 exe（或 install\\windows\\swap-to-app-dir.cmd）");
+            : "  3) app.asar 还在但与本插件无关，可忽略");
         Out("  4) 预检默认关闭；要恢复默认：tools\\calibrate.cmd --revert");
     }
 

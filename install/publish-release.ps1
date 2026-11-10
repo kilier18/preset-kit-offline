@@ -1,9 +1,9 @@
 ﻿param(
     [string]$Token = $env:GITHUB_TOKEN,
     [string]$Repo  = "kilier18/preset-kit-offline",
-    [string]$Tag   = "v1.1.90",
-    [string]$Name  = "v1.1.90 · dsh-preset-kit 离线安装包（Windows 一键安装器）",
-    [string]$Notes = "docs/RELEASE-v1.1.90.md"
+    [string]$Tag   = "v1.1.92",
+    [string]$Name  = "v1.1.92 · dsh-preset-kit 离线安装包（Windows 一键安装器）",
+    [string]$Notes = "docs/RELEASE-v1.1.92.md"
 )
 $ErrorActionPreference = "Stop"
 if (-not $Token) { Write-Host "[!] 需要 GitHub token（repo 权限）：`$env:GITHUB_TOKEN 或 -Token"; exit 2 }
@@ -34,8 +34,9 @@ if ($rel) {
 
 # 2) 上传/覆盖附件
 $assets = @(
-    @{ path = "dist/dsh-preset-kit-setup-1.1.90.exe"; name = "dsh-preset-kit-setup-1.1.90.exe" },
-    @{ path = "dist/dsh-preset-kit-1.1.90.tgz";      name = "dsh-preset-kit-1.1.90.tgz" }
+    @{ path = "dist/dsh-preset-kit-setup-1.1.92.exe"; name = "dsh-preset-kit-setup-1.1.92.exe" },
+    @{ path = "dist/dsh-preset-kit-1.1.92.tgz";      name = "dsh-preset-kit-1.1.92.tgz" },
+    @{ path = "dist/SHA256SUMS.txt";                 name = "SHA256SUMS.txt" }
 )
 foreach ($a in $assets) {
     if (-not (Test-Path $a.path)) { Write-Host "[!] 缺文件 $($a.path)"; continue }
